@@ -1,0 +1,17 @@
+{
+  "name": "fetch-unverified-rolimons",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node deploy-commands.js && nodemon index.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "discord.js": "^14.7.1",
+    "nodemon": "^2.0.20",
+    "puppeteer": "^19.4.1"
+  }
+}
