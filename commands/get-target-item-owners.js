@@ -45,6 +45,7 @@ module.exports = {
         const userIds = await GetPremiumUserIds(page, next_btn_selector);
         
         console.log(userIds);
+        console.log(userIds.length);
         
         // ==================================================
         // Iterate through each user
@@ -83,16 +84,17 @@ const CheckPageExists = async (page) => {
     }
 }
 
-const GetPremiumUserIds = async(page, next_btn_selector) => {
+const GetPremiumUserIds = async(page, next_btn_selector, maxUsers = 150) => {
     var isNextBtnDisabled = true;
     var userIds = [];
+    var nUsers = 0;
     do {
         // Get all anchor tags for current page
         const pageUserIds = await page.evaluate(() => {
             var pageUserIds = [];
             const data = document.querySelectorAll('#bc_owners_table tr td:nth-child(2) a:nth-child(1)');
             
-            // TODO: Check if any users own item
+            // Check if any users own item
             if (data) {
                 // Get all user Ids for current page
                 data.forEach(user => {
@@ -105,8 +107,17 @@ const GetPremiumUserIds = async(page, next_btn_selector) => {
             
             return pageUserIds;
         })
-        userIds = userIds.concat(pageUserIds);
-
+        if (pageUserIds.length + nUsers <= maxUsers) {
+            userIds = userIds.concat(pageUserIds);
+            nUsers += pageUserIds.length;
+        }
+        // Only obtain users that fit the limit
+        else {
+            const nRemaining = maxUsers - pageUserIds.length;
+            userIds = userIds.concat(pageUserIds.slice(0, nRemaining));
+            nUsers += nRemaining;
+        }
+        
         // Check if there is a next page
         isNextBtnDisabled = await page.$eval(next_btn_selector, el => {
             console.log(el.classList.contains('disabled'))
@@ -117,7 +128,7 @@ const GetPremiumUserIds = async(page, next_btn_selector) => {
         if (!isNextBtnDisabled) {
             await page.$eval(next_btn_selector, el => el.click());
         }
-    } while (!isNextBtnDisabled);
+    } while (!isNextBtnDisabled && nUsers < maxUsers);
 
     return userIds;
 }
