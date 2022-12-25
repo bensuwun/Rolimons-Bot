@@ -178,8 +178,8 @@ const GetAndSendTargetUsers = async(userIds, interaction) => {
 
             // console.log(`nUsers: ${i + 1}`);
             // Send batch and set sleep time to avoid rate limit exceeded
-            if ((i + 1) % 12 == 0 || i == userIds.length - 1){
-                const formattedString = await FormatBatchMessage(batchUserIds);
+            if ((i + 1) % 12 == 0){
+                const formattedString = await StringFormatter.FormatBatchMessage(batchUserIds);
                 interaction.followUp(formattedString);
                 batchUserIds = [];
                 
@@ -190,7 +190,7 @@ const GetAndSendTargetUsers = async(userIds, interaction) => {
 
             // If last, send one last follow up
             if (i == userIds.length - 1) {
-                const formattedString = await FormatBatchMessage(batchUserIds);
+                const formattedString = await StringFormatter.FormatBatchMessage(batchUserIds);
                 interaction.followUp(formattedString);
                 batchUserIds = [];
             }
