@@ -13,12 +13,23 @@ module.exports = {
             option.setName("item-id")
                 .setDescription('Item ID of the target limited item')
                 .setRequired(true)
+        )
+        .addIntegerOption(option => 
+            option.setName("user-count")
+                .setDescription('Number of users to fetch (maximum of 100')
         ),
     
     async execute(interaction) {
         const itemId = interaction.options.getInteger("item-id");
+        const userCount = interaction.options.getInteger("user-count") || 12;
+        const maxUsers = 100;
         const baseItemUrl = "https://www.rolimons.com/item/";
         const targetUrl = baseItemUrl + itemId;
+
+        if (userCount > maxUsers) {
+            await interaction.reply(`Please provide a userCount less than ${maxUsers}.`);
+            return;
+        }
 
         await interaction.deferReply();
 
@@ -30,7 +41,12 @@ module.exports = {
         await GotoUrl(page, targetUrl);
 
         // Terminate script if item ID does not exist.
-        await CheckPageExists(page);
+        const exists = await CheckPageExists(page);
+        if (!exists) {
+            console.warn('Item Id does not exist in rolimons.com');
+            interaction.editReply(`The following item ID does not exist in rolimons.com: \`${itemId}\``);
+            return;
+        }
 
         const bc_owners_table_selector = "#bc_owners_table";
         const next_btn_selector = '#bc_owners_table_next';
@@ -43,15 +59,14 @@ module.exports = {
         await page.select(table_length_selector + " select" , '100');
 
         // Get premium userIds
-        var userIds = await GetPremiumUserIds(page, next_btn_selector);
+        var userIds = await GetPremiumUserIds(page, next_btn_selector, userCount);
+        console.log(userIds);
 
-        // console.log(userIds);
-
-        userIds = [ '470625011',  '109702302',  '3481048271', '706460512',  '1339524447',
-        '398359237',  '266384071',  '66153865',   '251005625',  '2308655124',
-        '251817612',  '64495672',   '335575268',  '2302408771', '205640688',
-        '524749295',  '29779443',   '1177130320', '144464810',  '2016347381', '2394301869'];
-        userIds = userIds.slice(0,18);
+        // userIds = [ '470625011',  '109702302',  '3481048271', '706460512',  '1339524447',
+        // '398359237',  '266384071',  '66153865',   '251005625',  '2308655124',
+        // '251817612',  '64495672',   '335575268',  '2302408771', '205640688',
+        // '524749295',  '29779443',   '1177130320', '144464810',  '2016347381', '2394301869'];
+        // userIds = userIds.slice(0,18);
 
         const targetUserIds = await GetAndSendTargetUsers(userIds, interaction);
         console.log(targetUserIds);
@@ -64,9 +79,7 @@ module.exports = {
 
 const GotoUrl = async (page, targetUrl) => {
     try {
-        await page.goto(targetUrl, {
-            waitUntil: "domcontentloaded",
-        });
+        await page.goto(targetUrl);
     } catch(err) {
         console.warn("Error loading URL", err);
         interaction.editReply("Error loading URL");
@@ -79,7 +92,8 @@ const GotoUrl = async (page, targetUrl) => {
  */
 const CheckPageExists = async (page) => {
     try{
-        await page.$('.item_name');
+        const exists = await page.$('.item_name');
+        return exists;
     } catch(err) {
         console.warn(err);
         console.warn('Item Id does not exist in rolimons.com');
@@ -95,10 +109,11 @@ const CheckPageExists = async (page) => {
  * @param {int} maxUsers - maximum number of users to query
  * @returns 
  */
-const GetPremiumUserIds = async(page, next_btn_selector, maxUsers = 100) => {
+const GetPremiumUserIds = async(page, next_btn_selector, userCount) => {
     var isNextBtnDisabled = true;
     var userIds = [];
     var nUsers = 0;
+    const pageLimit = 100;
     do {
         // Get all anchor tags for current page
         const pageUserIds = await page.evaluate(() => {
@@ -118,13 +133,18 @@ const GetPremiumUserIds = async(page, next_btn_selector, maxUsers = 100) => {
             
             return pageUserIds;
         })
-        if (pageUserIds.length + nUsers <= maxUsers) {
+        if (pageUserIds.length + nUsers <= userCount) {
             userIds = userIds.concat(pageUserIds);
             nUsers += pageUserIds.length;
         }
-        // Only obtain users that fit the limit
+        // Will only run once
+        else if (userCount < pageLimit) {
+            userIds = userIds.concat(pageUserIds.slice(0, userCount));
+            nUsers += userCount;
+        }
+        // Too many retrieved users, reduce (will only run once)
         else {
-            const nRemaining = maxUsers - pageUserIds.length;
+            const nRemaining = userCount - pageUserIds.length;
             userIds = userIds.concat(pageUserIds.slice(0, nRemaining));
             nUsers += nRemaining;
         }
@@ -139,7 +159,7 @@ const GetPremiumUserIds = async(page, next_btn_selector, maxUsers = 100) => {
         if (!isNextBtnDisabled) {
             await page.$eval(next_btn_selector, el => el.click());
         }
-    } while (!isNextBtnDisabled && nUsers < maxUsers);
+    } while (!isNextBtnDisabled && nUsers < userCount);
 
     return userIds;
 }
