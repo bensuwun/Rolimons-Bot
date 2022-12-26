@@ -7,7 +7,7 @@ const StringFormatter = require("../helpers/StringFormatting.js");
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('get-target-item-owners')
+        .setName('owners')
         .setDescription('Get list of unverified users & users with < than 100 trade ads for a given item from rolimons.com.')
         .addIntegerOption(option => 
             option.setName("item-id")
@@ -25,6 +25,14 @@ module.exports = {
         const maxUsers = 100;
         const baseItemUrl = "https://www.rolimons.com/item/";
         const targetUrl = baseItemUrl + itemId;
+        const client = interaction.client;
+
+        // Check if cooldown ongoing;
+        const isOnCooldown = IsOnCooldown(interaction);
+        if (isOnCooldown) {
+            interaction.reply({ content: "Please wait for cooldown to end", ephemeral: true });
+            return;
+        }
 
         if (userCount > maxUsers) {
             await interaction.reply(`Please provide a userCount less than ${maxUsers}.`);
@@ -43,7 +51,7 @@ module.exports = {
         // Terminate script if item ID does not exist.
         const exists = await CheckPageExists(page);
         if (!exists) {
-            console.warn('Item Id does not exist in rolimons.com');
+            console.log(`Item Id ${itemId} does not exist in rolimons.com`);
             interaction.editReply(`The following item ID does not exist in rolimons.com: \`${itemId}\``);
             return;
         }
@@ -74,7 +82,23 @@ module.exports = {
         // Precaution if no target users were found:
         if (targetUserIds.length == 0)
             await interaction.editReply('No unverified users (or users with less than 100 trade ads) found.');
+
+        // Set cooldown
+        client.cooldowns.set(interaction.user.id, true);
+        setTimeout(() => {
+            client.cooldowns.delete(interaction.user.id); 
+        }, client.COOLDOWN_SECONDS * 1000);
     }
+}
+
+const IsOnCooldown = (interaction) => {
+    const client = interaction.client;
+    var isOnCooldown = false;
+
+    if (client.cooldowns.has(interaction.user.id)) {
+        isOnCooldown = true;
+    }
+    return isOnCooldown;
 }
 
 const GotoUrl = async (page, targetUrl) => {

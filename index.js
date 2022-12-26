@@ -9,6 +9,8 @@ const client = new Client({
 });
 
 client.commands = new Collection();
+client.cooldowns = new Collection();
+client.COOLDOWN_SECONDS = 60; // 1 minute for rate limit interval
 
 // Retrieve commands
 const commandsPath = path.join(__dirname, 'commands');
