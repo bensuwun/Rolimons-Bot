@@ -1,6 +1,5 @@
 const { default: axios } = require("axios");
 const { SlashCommandBuilder } = require("discord.js");
-const { default: next } = require("next");
 const browser = require("../scraping/browser.js");
 const { startBrowser } = require("../scraping/browser.js");
 const StringFormatter = require("../helpers/StringFormatting.js");
@@ -38,6 +37,8 @@ module.exports = {
             await interaction.reply(`Please provide a userCount less than ${maxUsers}.`);
             return;
         }
+        // Set executing cooldown
+        client.executingCooldowns.set(interaction.user.id, true)
 
         await interaction.deferReply();
 
@@ -68,12 +69,9 @@ module.exports = {
 
         // Get premium userIds
         var userIds = await GetPremiumUserIds(page, next_btn_selector, userCount);
+        console.log(`Total user IDs: ${userIds.length}`);
         console.log(userIds);
 
-        // userIds = [ '470625011',  '109702302',  '3481048271', '706460512',  '1339524447',
-        // '398359237',  '266384071',  '66153865',   '251005625',  '2308655124',
-        // '251817612',  '64495672',   '335575268',  '2302408771', '205640688',
-        // '524749295',  '29779443',   '1177130320', '144464810',  '2016347381', '2394301869'];
         // userIds = userIds.slice(0,18);
 
         const targetUserIds = await GetAndSendTargetUsers(userIds, interaction);
@@ -83,7 +81,14 @@ module.exports = {
         if (targetUserIds.length == 0)
             await interaction.editReply('No unverified users (or users with less than 100 trade ads) found.');
 
-        // Set cooldown
+        else {
+            await interaction.followUp(`[COMPLETE] Finished fetching users for item: ${itemId}`);
+        }
+
+        // Remove executing cooldown
+        client.executingCooldowns.delete(interaction.user.id);
+
+        // Set cooldown for rate limit
         client.cooldowns.set(interaction.user.id, true);
         setTimeout(() => {
             client.cooldowns.delete(interaction.user.id); 
@@ -95,7 +100,7 @@ const IsOnCooldown = (interaction) => {
     const client = interaction.client;
     var isOnCooldown = false;
 
-    if (client.cooldowns.has(interaction.user.id)) {
+    if (client.cooldowns.has(interaction.user.id) || client.executingCooldowns.has(interaction.user.id)) {
         isOnCooldown = true;
     }
     return isOnCooldown;
@@ -140,7 +145,7 @@ const GetPremiumUserIds = async(page, next_btn_selector, userCount) => {
     const pageLimit = 100;
     do {
         // Get all anchor tags for current page
-        const pageUserIds = await page.evaluate(() => {
+        var pageUserIds = await page.evaluate(() => {
             var pageUserIds = [];
             const data = document.querySelectorAll('#bc_owners_table tr td:nth-child(2) a:nth-child(1)');
             
@@ -157,21 +162,25 @@ const GetPremiumUserIds = async(page, next_btn_selector, userCount) => {
             
             return pageUserIds;
         })
-        if (pageUserIds.length + nUsers <= userCount) {
-            userIds = userIds.concat(pageUserIds);
-            nUsers += pageUserIds.length;
+
+        if (userCount < pageLimit) {
+            pageUserIds = pageUserIds.slice(0, userCount);
         }
-        // Will only run once
-        else if (userCount < pageLimit) {
-            userIds = userIds.concat(pageUserIds.slice(0, userCount));
-            nUsers += userCount;
-        }
+        // page users + current users <= number of users to fetch
+        else if (pageUserIds.length + nUsers <= userCount) {
+            pageUserIds = pageUserIds;
+        }        
         // Too many retrieved users, reduce (will only run once)
         else {
             const nRemaining = userCount - pageUserIds.length;
-            userIds = userIds.concat(pageUserIds.slice(0, nRemaining));
-            nUsers += nRemaining;
+            pageUserIds = pageUserIds.slice(0, nRemaining);
         }
+
+        userIds = userIds.concat(pageUserIds);
+        nUsers += pageUserIds.length;
+
+        // Remove duplicates in userIds
+        userIds = [...new Set(userIds)];
         
         // Check if there is a next page
         isNextBtnDisabled = await page.$eval(next_btn_selector, el => {
@@ -224,18 +233,21 @@ const GetAndSendTargetUsers = async(userIds, interaction) => {
             // Send batch and set sleep time to avoid rate limit exceeded
             if ((i + 1) % 12 == 0){
                 const formattedString = await StringFormatter.FormatBatchMessage(batchUserIds);
-                interaction.followUp(formattedString);
+                if (formattedString !== ""){
+                    interaction.followUp(formattedString);
+                    console.log("Sleeping");
+                    await sleep(60000);
+                    console.log("I'm awake");
+                }
                 batchUserIds = [];
-                
-                console.log("Sleeping");
-                await sleep(60000);
-                console.log("I'm awake");
             }
 
             // If last, send one last follow up
             if (i == userIds.length - 1) {
                 const formattedString = await StringFormatter.FormatBatchMessage(batchUserIds);
-                interaction.followUp(formattedString);
+                if (formattedString !== "") {
+                    interaction.followUp(formattedString);
+                }
                 batchUserIds = [];
             }
         }

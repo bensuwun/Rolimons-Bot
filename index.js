@@ -10,6 +10,7 @@ const client = new Client({
 
 client.commands = new Collection();
 client.cooldowns = new Collection();
+client.executingCooldowns = new Collection();
 client.COOLDOWN_SECONDS = 60; // 1 minute for rate limit interval
 
 // Retrieve commands
