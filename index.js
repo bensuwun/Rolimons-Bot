@@ -47,3 +47,5 @@ for (const file of eventFiles) {
 
 // Log in to Discord with your client's token
 client.login(process.env.TOKEN);
+
+// https://stackoverflow.com/questions/71756140/error-while-loading-shared-libraries-libnss3-so-cannot-open-shared-object-file
