@@ -54,6 +54,7 @@ module.exports = {
         if (!exists) {
             console.log(`Item Id ${itemId} does not exist in rolimons.com`);
             interaction.editReply(`The following item ID does not exist in rolimons.com: \`${itemId}\``);
+            client.executingCooldowns.delete(interaction.user.id);
             return;
         }
 
