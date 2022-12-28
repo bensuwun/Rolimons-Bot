@@ -7,7 +7,7 @@ module.exports = {
             console.log("Opening the headless browser");
             browser = await puppeteer.launch({
                 headless: false,
-                args: ["--disable-setuid-sandbox"],
+                args: ["--disable-setuid-sandbox", "--no-sandbox"],
                 'ignoreHTTPSErrors': true
             });
         } catch (err) {
