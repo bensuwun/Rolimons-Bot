@@ -15,7 +15,7 @@ module.exports = {
         )
         .addIntegerOption(option => 
             option.setName("user-count")
-                .setDescription('Number of users to fetch (maximum of 100')
+                .setDescription('Number of users to fetch (maximum of 100)')
         ),
     
     async execute(interaction) {
@@ -41,6 +41,8 @@ module.exports = {
         client.executingCooldowns.set(interaction.user.id, true)
 
         await interaction.deferReply();
+
+        console.log(`Fetching ${userCount} users.`);
 
         // Begin initializing browser and new page
         const browser = await startBrowser();
