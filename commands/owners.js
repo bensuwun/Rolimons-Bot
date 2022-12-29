@@ -49,10 +49,10 @@ module.exports = {
         const page = await browser.newPage();
         
         // Go to item page
-        await GotoUrl(page, targetUrl);
+        await GotoUrl(page, targetUrl, interaction);
 
         // Terminate script if item ID does not exist.
-        const exists = await CheckPageExists(page);
+        const exists = await CheckPageExists(page, interaction);
         if (!exists) {
             console.log(`Item Id ${itemId} does not exist in rolimons.com`);
             interaction.editReply(`The following item ID does not exist in rolimons.com: \`${itemId}\``);
@@ -109,7 +109,7 @@ const IsOnCooldown = (interaction) => {
     return isOnCooldown;
 }
 
-const GotoUrl = async (page, targetUrl) => {
+const GotoUrl = async (page, targetUrl, interaction) => {
     try {
         await page.goto(targetUrl);
     } catch(err) {
@@ -122,7 +122,7 @@ const GotoUrl = async (page, targetUrl) => {
  * Check if item page exists using .item_name selector as indicator.
  * @returns void
  */
-const CheckPageExists = async (page) => {
+const CheckPageExists = async (page, interaction) => {
     try{
         const exists = await page.$('.item_name');
         return exists;
