@@ -49,7 +49,15 @@ module.exports = {
         const page = await browser.newPage();
         
         // Go to item page
-        await GotoUrl(page, targetUrl, interaction);
+        const success = await GotoUrl(page, targetUrl, interaction);
+        if (!success) {
+            interaction.editReply("Error loading URL");
+            client.executingCooldowns.delete(interaction.user.id);
+
+            // Exit browser and page
+            await browser.close();
+            return;
+        }
 
         // Terminate script if item ID does not exist.
         const exists = await CheckPageExists(page, interaction);
@@ -57,6 +65,8 @@ module.exports = {
             console.log(`Item Id ${itemId} does not exist in rolimons.com`);
             interaction.editReply(`The following item ID does not exist in rolimons.com: \`${itemId}\``);
             client.executingCooldowns.delete(interaction.user.id);
+
+            await browser.close();
             return;
         }
 
@@ -81,12 +91,16 @@ module.exports = {
         console.log(targetUserIds);
 
         // Precaution if no target users were found:
-        if (targetUserIds.length == 0)
-            await interaction.editReply('No unverified users (or users with less than 100 trade ads) found.');
-
+        if (targetUserIds.length == 0){
+            console.log(`No unverified users (or users with less than 100 trade ads) found for item ${itemId}.`);
+            await interaction.editReply(`No unverified users (or users with less than 100 trade ads) found for item ${itemId}.`);
+        }
         else {
+            console.log(`[COMPLETE] Finished fetching users for item: ${itemId}`);
             await interaction.followUp(`[COMPLETE] Finished fetching users for item: ${itemId}`);
         }
+
+        await browser.close();
 
         // Remove executing cooldown
         client.executingCooldowns.delete(interaction.user.id);
@@ -112,9 +126,10 @@ const IsOnCooldown = (interaction) => {
 const GotoUrl = async (page, targetUrl, interaction) => {
     try {
         await page.goto(targetUrl);
+        return true;
     } catch(err) {
         console.warn("Error loading URL", err);
-        interaction.editReply("Error loading URL");
+        return false;
     }
 }
 
