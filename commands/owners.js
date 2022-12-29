@@ -42,7 +42,7 @@ module.exports = {
 
         await interaction.deferReply();
 
-        console.log(`Fetching ${userCount} users.`);
+        console.log(`Fetching ${userCount} users for ${itemId}.`);
 
         // Begin initializing browser and new page
         const browser = await startBrowser();
