@@ -26,14 +26,18 @@ module.exports = {
         const targetUrl = baseItemUrl + itemId;
         const client = interaction.client;
 
+        console.log(`Attempting to fetch ${userCount} users for ${itemId}.`);
+
         // Check if cooldown ongoing;
         const isOnCooldown = IsOnCooldown(interaction);
         if (isOnCooldown) {
-            interaction.reply({ content: "Please wait for cooldown to end", ephemeral: true });
+            console.log(`Please wait for cooldown to end.`);
+            await interaction.reply({ content: "Please wait for cooldown to end", ephemeral: true });
             return;
         }
 
         if (userCount > maxUsers) {
+            console.log(`Please provide a userCount less than ${maxUsers}.`);
             await interaction.reply(`Please provide a userCount less than ${maxUsers}.`);
             return;
         }
@@ -42,8 +46,6 @@ module.exports = {
 
         await interaction.deferReply();
 
-        console.log(`Fetching ${userCount} users for ${itemId}.`);
-
         // Begin initializing browser and new page
         const browser = await startBrowser();
         const page = await browser.newPage();
@@ -51,7 +53,7 @@ module.exports = {
         // Go to item page
         const success = await GotoUrl(page, targetUrl, interaction);
         if (!success) {
-            interaction.editReply("Error loading URL");
+            await interaction.editReply("Error loading URL");
             client.executingCooldowns.delete(interaction.user.id);
 
             // Exit browser and page
@@ -63,7 +65,7 @@ module.exports = {
         const exists = await CheckPageExists(page, interaction);
         if (!exists) {
             console.log(`Item Id ${itemId} does not exist in rolimons.com`);
-            interaction.editReply(`The following item ID does not exist in rolimons.com: \`${itemId}\``);
+            await interaction.editReply(`The following item ID does not exist in rolimons.com: \`${itemId}\``);
             client.executingCooldowns.delete(interaction.user.id);
 
             await browser.close();
@@ -144,7 +146,6 @@ const CheckPageExists = async (page, interaction) => {
     } catch(err) {
         console.warn(err);
         console.warn('Item Id does not exist in rolimons.com');
-        interaction.editReply(`The following item ID does not exist in rolimons.com: \`${itemId}\``);
         return;
     }
 }
@@ -252,7 +253,7 @@ const GetAndSendTargetUsers = async(userIds, interaction) => {
             if ((i + 1) % 12 == 0){
                 const formattedString = await StringFormatter.FormatBatchMessage(batchUserIds);
                 if (formattedString !== ""){
-                    interaction.followUp(formattedString);
+                    await interaction.followUp(formattedString);
                     console.log("Sleeping");
                     await sleep(60000);
                     console.log("I'm awake");
@@ -264,7 +265,7 @@ const GetAndSendTargetUsers = async(userIds, interaction) => {
             if (i == userIds.length - 1) {
                 const formattedString = await StringFormatter.FormatBatchMessage(batchUserIds);
                 if (formattedString !== "") {
-                    interaction.followUp(formattedString);
+                    await interaction.followUp(formattedString);
                 }
                 batchUserIds = [];
             }
