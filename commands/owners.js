@@ -7,7 +7,7 @@ const StringFormatter = require("../helpers/StringFormatting.js");
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('owners')
-        .setDescription('Get list of unverified users & users with < than 100 trade ads for a given item from rolimons.com.')
+        .setDescription('Get unverified users or users with less than 100 trade ads for an item from rolimons.')
         .addIntegerOption(option => 
             option.setName("item-id")
                 .setDescription('Item ID of the target limited item')
@@ -15,13 +15,13 @@ module.exports = {
         )
         .addIntegerOption(option => 
             option.setName("user-count")
-                .setDescription('Number of users to fetch (maximum of 100)')
+                .setDescription('Number of users to fetch (maximum of 150)')
         ),
     
     async execute(interaction) {
         const itemId = interaction.options.getInteger("item-id");
         const userCount = interaction.options.getInteger("user-count") || 12;
-        const maxUsers = 100;
+        const maxUsers = 150;
         const baseItemUrl = "https://www.rolimons.com/item/";
         const targetUrl = baseItemUrl + itemId;
         const client = interaction.client;
@@ -84,13 +84,12 @@ module.exports = {
 
         // Get premium userIds
         var userIds = await GetPremiumUserIds(page, next_btn_selector, userCount);
-        console.log(`Total user IDs: ${userIds.length}`);
-        console.log(userIds);
+        console.log(`Total User IDs: ${userIds.length}`);
+        console.log(`List of User IDs:`, userIds);
 
-        // userIds = userIds.slice(0,18);
-
+        // All user IDs that fit criteria
         const targetUserIds = await GetAndSendTargetUsers(userIds, interaction);
-        console.log(targetUserIds);
+        console.log('Filtered List of User IDs:', targetUserIds);
 
         // Precaution if no target users were found:
         if (targetUserIds.length == 0){
@@ -98,8 +97,8 @@ module.exports = {
             await interaction.editReply(`No unverified users (or users with less than 100 trade ads) found for item ${itemId}.`);
         }
         else {
-            console.log(`[COMPLETE] Finished fetching users for item: ${itemId}`);
-            await interaction.followUp(`[COMPLETE] Finished fetching users for item: ${itemId}`);
+            console.log(`[✅ COMPLETE] Finished fetching users for item: ${itemId}`);
+            await interaction.followUp(`[✅ COMPLETE] Finished fetching users for item: ${itemId}`);
         }
 
         await browser.close();
@@ -225,7 +224,8 @@ const GetPremiumUserIds = async(page, next_btn_selector, userCount) => {
 const GetAndSendTargetUsers = async(userIds, interaction) => {
     const targetUserIds = [];
     var batchUserIds = [];
-
+    var batchCtr = 0;
+    var ctr = 0; // For string formatting
     for (var i = 0; i < userIds.length; i++) {
         try {
             const userId = userIds[i];
@@ -239,9 +239,10 @@ const GetAndSendTargetUsers = async(userIds, interaction) => {
                 if (!(verified_badge_name in badges) || !(trades100_badge_name in badges)) {
                     targetUserIds.push(userId);
                     batchUserIds.push(userId);
+                    ctr += 1;
                 }
                 else {
-                    console.log(`Nope, ${userId} has either badge`);
+                    console.log(`Filtered ${userId} -- User is Verified AND has 100 Trade Ads`);
                 }
             }
             else {
@@ -251,21 +252,23 @@ const GetAndSendTargetUsers = async(userIds, interaction) => {
             // console.log(`nUsers: ${i + 1}`);
             // Send batch and set sleep time to avoid rate limit exceeded
             if ((i + 1) % 12 == 0){
-                const formattedString = await StringFormatter.FormatBatchMessage(batchUserIds);
+                const formattedString = await StringFormatter.FormatBatchMessage(batchUserIds, batchCtr);
                 if (formattedString !== ""){
                     await interaction.followUp(formattedString);
-                    console.log("Sleeping");
+                    console.log("Sleeping for 1 min - Avoiding Rate Limit");
                     await sleep(60000);
-                    console.log("I'm awake");
+                    console.log("Resuming Process");
+                    batchCtr = ctr;
                 }
                 batchUserIds = [];
             }
 
             // If last, send one last follow up
             if (i == userIds.length - 1) {
-                const formattedString = await StringFormatter.FormatBatchMessage(batchUserIds);
+                const formattedString = await StringFormatter.FormatBatchMessage(batchUserIds, batchCtr);
                 if (formattedString !== "") {
                     await interaction.followUp(formattedString);
+                    batchCtr = ctr;
                 }
                 batchUserIds = [];
             }

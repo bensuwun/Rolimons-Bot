@@ -1,11 +1,10 @@
-const FormatBatchMessage = async(batchUserIds) => {
+const FormatBatchMessage = async(batchUserIds, currentCtr) => {
     var formattedString = "";
-    console.log("Running");
     for (var i = 0; i < batchUserIds.length; i++) {
-        var userString = await (FormatUserId(i, batchUserIds[i]));
-        console.log(`User String: ${userString}`);
+        var userString = await (FormatUserId(i + currentCtr, batchUserIds[i]));
         formattedString = formattedString.concat(userString);
     }
+    console.log(`User Batch: \n${formattedString}`);
     return formattedString;
 }
 
