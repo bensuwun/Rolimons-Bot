@@ -7,7 +7,7 @@ const StringFormatter = require("../helpers/StringFormatting.js");
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('owners')
-        .setDescription('Get unverified users or users with less than 100 trade ads for an item from rolimons.')
+        .setDescription('Get unverified users or users with less than 100 trade ads for an item from Rolimons.')
         .addIntegerOption(option => 
             option.setName("item-id")
                 .setDescription('Item ID of the target limited item')
@@ -15,16 +15,17 @@ module.exports = {
         )
         .addIntegerOption(option => 
             option.setName("user-count")
-                .setDescription('Number of users to fetch (maximum of 150)')
+                .setDescription('Number of users to fetch (maximum of 300)')
         ),
     
     async execute(interaction) {
         const itemId = interaction.options.getInteger("item-id");
         const userCount = interaction.options.getInteger("user-count") || 12;
-        const maxUsers = 150;
+        const maxUsers = 300;
         const baseItemUrl = "https://www.rolimons.com/item/";
         const targetUrl = baseItemUrl + itemId;
         const client = interaction.client;
+        const channel = interaction.channel;
 
         console.log(`Attempting to fetch ${userCount} users for ${itemId}.`);
 
@@ -87,18 +88,23 @@ module.exports = {
         console.log(`Total User IDs: ${userIds.length}`);
         console.log(`List of User IDs:`, userIds);
 
+        // Generate reply
+        await interaction.editReply("[⌛ QUERY] Retrieving users from Rolimons.")
+
         // All user IDs that fit criteria
         const targetUserIds = await GetAndSendTargetUsers(userIds, interaction);
         console.log('Filtered List of User IDs:', targetUserIds);
 
         // Precaution if no target users were found:
         if (targetUserIds.length == 0){
-            console.log(`No unverified users (or users with less than 100 trade ads) found for item ${itemId}.`);
-            await interaction.editReply(`No unverified users (or users with less than 100 trade ads) found for item ${itemId}.`);
+            console.log(`[✅ COMPLETE] No unverified users (or users with less than 100 trade ads) found for item ${itemId}.`);
+            channel.send(`[✅ COMPLETE] No unverified users (or users with less than 100 trade ads) found for item ${itemId}.`);
+            // await interaction.editReply(`No unverified users (or users with less than 100 trade ads) found for item ${itemId}.`);
         }
         else {
             console.log(`[✅ COMPLETE] Finished fetching users for item: ${itemId}`);
-            await interaction.followUp(`[✅ COMPLETE] Finished fetching users for item: ${itemId}`);
+            channel.send(`[✅ COMPLETE] Finished fetching users for item: ${itemId}`);
+            // await interaction.followUp(`[✅ COMPLETE] Finished fetching users for item: ${itemId}`);
         }
 
         await browser.close();
@@ -226,6 +232,7 @@ const GetAndSendTargetUsers = async(userIds, interaction) => {
     var batchUserIds = [];
     var batchCtr = 0;
     var ctr = 0; // For string formatting
+    const channel = interaction.channel;
     for (var i = 0; i < userIds.length; i++) {
         try {
             const userId = userIds[i];
@@ -242,7 +249,7 @@ const GetAndSendTargetUsers = async(userIds, interaction) => {
                     ctr += 1;
                 }
                 else {
-                    console.log(`Filtered ${userId} -- User is Verified AND has 100 Trade Ads`);
+                    console.log(`Filtered ${userId} -- User is Verified OR has 100 Trade Ads`);
                 }
             }
             else {
@@ -254,7 +261,7 @@ const GetAndSendTargetUsers = async(userIds, interaction) => {
             if ((i + 1) % 12 == 0){
                 const formattedString = await StringFormatter.FormatBatchMessage(batchUserIds, batchCtr);
                 if (formattedString !== ""){
-                    await interaction.followUp(formattedString);
+                    channel.send(formattedString);
                     console.log("Sleeping for 1 min - Avoiding Rate Limit");
                     await sleep(60000);
                     console.log("Resuming Process");
@@ -267,7 +274,8 @@ const GetAndSendTargetUsers = async(userIds, interaction) => {
             if (i == userIds.length - 1) {
                 const formattedString = await StringFormatter.FormatBatchMessage(batchUserIds, batchCtr);
                 if (formattedString !== "") {
-                    await interaction.followUp(formattedString);
+                    // await interaction.followUp(formattedString);
+                    channel.send(formattedString);
                     batchCtr = ctr;
                 }
                 batchUserIds = [];
